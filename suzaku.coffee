@@ -57,16 +57,43 @@ class Widget extends EventEmitter
     if creator instanceof window.HTMLElement
       @dom = creator
       @J = $ dom if $
-    #init UI  
+    @initUI()
+  initUI:()->
     for dom in @dom.children
       did = dom.getAttribute "data-id"
       if did then @UI[did] =
         dom:dom
         J:if $ then $ dom else null
   remove:()->
-  beforBy:(newElem)->
-  afterBy:(newElem)->
-  replaceBy:(newElem)->
+    @dom.parentElement.removeChild @dom
+  before:(target)->
+    if target instanceof Widget
+      target = target.dom
+    if $ and target instanceof $
+      target = target[0]
+    if target instanceof HTMLElement
+      target.parentElement.insertBefore @dom,target
+    else
+      console.error "invaild target!  --Suzaku.Widget"
+  after:(target)->
+    if target instanceof Widget
+      target = target.dom
+    if $ and target instanceof $
+      target = target[0]
+    if target instanceof HTMLElement
+      parent = target.parentElement
+      next = null
+      for dom,index in parent.children 
+        if dom is target and index < parent.children.length - 1
+          next = parent.children[index+1]
+      if next then parent.insertBefore @dom,next
+      else parent.appendChild @dom
+    else
+      console.error "invaild target!  --Suzaku.Widget"
+  replace:(target)->
+    @before target
+    if target instanceof Widget then target.remove()
+    if target instanceof HTMLElement then target.parentElement.removeChild target
           
 class TemplateManager extends EventEmitter
   constructor:()->

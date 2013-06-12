@@ -71,7 +71,7 @@
     __extends(Widget, _super);
 
     function Widget(creator) {
-      var did, dom, tempDiv, template, _i, _len, _ref;
+      var tempDiv, template;
       if (!creator) {
         console.error("need a creator! -- Suzaku.Widget");
         return;
@@ -111,26 +111,83 @@
           this.J = $(dom);
         }
       }
+      this.initUI();
+    }
+
+    Widget.prototype.initUI = function() {
+      var did, dom, _i, _len, _ref, _results;
       _ref = this.dom.children;
+      _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         dom = _ref[_i];
         did = dom.getAttribute("data-id");
         if (did) {
-          this.UI[did] = {
+          _results.push(this.UI[did] = {
             dom: dom,
             J: $ ? $(dom) : null
-          };
+          });
+        } else {
+          _results.push(void 0);
         }
       }
-    }
+      return _results;
+    };
 
-    Widget.prototype.remove = function() {};
+    Widget.prototype.remove = function() {
+      return this.dom.parentElement.removeChild(this.dom);
+    };
 
-    Widget.prototype.beforBy = function(newElem) {};
+    Widget.prototype.before = function(target) {
+      if (target instanceof Widget) {
+        target = target.dom;
+      }
+      if ($ && target instanceof $) {
+        target = target[0];
+      }
+      if (target instanceof HTMLElement) {
+        return target.parentElement.insertBefore(this.dom, target);
+      } else {
+        return console.error("invaild target!  --Suzaku.Widget");
+      }
+    };
 
-    Widget.prototype.afterBy = function(newElem) {};
+    Widget.prototype.after = function(target) {
+      var dom, index, next, parent, _i, _len, _ref;
+      if (target instanceof Widget) {
+        target = target.dom;
+      }
+      if ($ && target instanceof $) {
+        target = target[0];
+      }
+      if (target instanceof HTMLElement) {
+        parent = target.parentElement;
+        next = null;
+        _ref = parent.children;
+        for (index = _i = 0, _len = _ref.length; _i < _len; index = ++_i) {
+          dom = _ref[index];
+          if (dom === target && index < parent.children.length - 1) {
+            next = parent.children[index + 1];
+          }
+        }
+        if (next) {
+          return parent.insertBefore(this.dom, next);
+        } else {
+          return parent.appendChild(this.dom);
+        }
+      } else {
+        return console.error("invaild target!  --Suzaku.Widget");
+      }
+    };
 
-    Widget.prototype.replaceBy = function(newElem) {};
+    Widget.prototype.replace = function(target) {
+      this.before(target);
+      if (target instanceof Widget) {
+        target.remove();
+      }
+      if (target instanceof HTMLElement) {
+        return target.parentElement.removeChild(target);
+      }
+    };
 
     return Widget;
 

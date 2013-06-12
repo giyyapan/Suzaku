@@ -2,7 +2,7 @@
 	not work now
 * template manager
 	get template by ajax
-* widget
+* DONE widget
 	remove beforeBy afterBy replaceBy
 * utils
 ** clone
