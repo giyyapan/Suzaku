@@ -3,6 +3,7 @@ if not $
   
 class Suzaku
   constructor:()->
+    console.log "init Suzaku" 
     @Widget = Widget
     @TemplateManager = TemplateManager
     @EventEmitter = EventEmitter

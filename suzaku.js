@@ -10,6 +10,7 @@
   Suzaku = (function() {
 
     function Suzaku() {
+      console.log("init Suzaku");
       this.Widget = Widget;
       this.TemplateManager = TemplateManager;
       this.EventEmitter = EventEmitter;
