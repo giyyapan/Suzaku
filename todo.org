@@ -1,0 +1,9 @@
+* TODO ajax manager
+	not work now
+* template manager
+	get template by ajax
+* widget
+	remove beforeBy afterBy replaceBy
+* utils
+** clone
+** compere
