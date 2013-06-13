@@ -239,8 +239,7 @@
 
     function AjaxManager() {
       if (!$) {
-        console.error("ajax Manager needs Jquery!");
-        return;
+        return console.error("ajax Manager needs Jquery!");
       }
       this.reqs = [];
       this.ajaxTasks = {};
@@ -250,8 +249,7 @@
     AjaxManager.prototype.addRequest = function(option) {
       option.type = option.type || 'get';
       if (!option.url) {
-        console.error("ajax need url!");
-        return;
+        return console.error("ajax need url!");
       }
       console.log("Add request:", option.type, "to", option.url, "--Suzaku.AjaxManager");
       return this.reqs.push(option);
@@ -323,7 +321,10 @@
         ajaxTask.finishedNum += 1;
         console.error("request failed!", req, textStatus, error);
         if (ajaxTask.Suzaku_taskOpt.fail) {
-          return ajaxTask.Suzaku_taskOpt.fail(req, textStatus, error);
+          ajaxTask.Suzaku_taskOpt.fail(req, textStatus, error);
+        }
+        if (ajaxTask.finishedNum === ajaxTask.reqs.length) {
+          return this.emit("finish", ajaxTask.id);
         }
       }
     };
@@ -358,9 +359,100 @@
       }
       return target;
     },
-    compare: function() {},
-    arrRemove: function() {},
-    removeObjFromArr: function() {}
+    compare: function(a, b) {
+      var name, value;
+      if (a === b) {
+        return true;
+      }
+      if (typeof a === "number" && typeof b === "number") {
+        if (Math.abs(a - b) < 0.0001) {
+          return true;
+        }
+      }
+      if (typeof a === "object" && typeof b === "object") {
+        for (name in a) {
+          value = a[name];
+          if (!Utils.compare(b[name], value)) {
+            return false;
+          }
+        }
+        for (name in b) {
+          value = b[name];
+          if (!Utils.compare(a[name], value)) {
+            return false;
+          }
+        }
+        return true;
+      }
+      return false;
+    },
+    removeItem: function(source, target) {
+      var found, item, keyname, keyvalue, name;
+      if (source instanceof Array && typeof target === 'number') {
+        return source.splice(target, 1);
+      }
+      if (typeof source === 'object') {
+        if (typeof target === 'string' || typeof target === 'number') {
+          return delete source[target];
+        }
+        if (typeof target === 'object') {
+          for (name in source) {
+            item = source[name];
+            if (item === target) {
+              return Utils.removeItem(source, name);
+            }
+            found = true;
+            for (keyname in target) {
+              keyvalue = target[keyname];
+              if (Utils.compare(item[keyname], keyvalue)) {
+                continue;
+              } else {
+                found = false;
+                break;
+              }
+            }
+            if (found) {
+              return Utils.removeItem(source, name);
+            }
+          }
+        }
+      }
+    },
+    findItem: function(source, key, value) {
+      var found, item, keyname, keyvalue, name, target;
+      if (typeof key === 'string' && typeof value !== 'undefined') {
+        target = {
+          key: value
+        };
+      } else {
+        target = key;
+      }
+      for (name in source) {
+        item = source[name];
+        if (item === target) {
+          return {
+            target: target,
+            index: null
+          };
+        }
+        found = true;
+        for (keyname in target) {
+          keyvalue = target[keyname];
+          if (Utils.compare(item[keyname], keyvalue)) {
+            continue;
+          } else {
+            found = false;
+            break;
+          }
+        }
+        if (found) {
+          return {
+            target: target,
+            index: name
+          };
+        }
+      }
+    }
   };
 
   window.Suzaku.Key = {

@@ -120,21 +120,16 @@ class TemplateManager extends EventEmitter
 
 class AjaxManager extends EventEmitter
   constructor:()->
-    if not $
-      console.error "ajax Manager needs Jquery!"
-      return
+    return console.error "ajax Manager needs Jquery!" if not $
     @reqs = []
     @ajaxTasks = {}
     @tidCounter = 0
   addRequest:(option)->
     option.type = option.type or 'get'
-    if not option.url
-      console.error "ajax need url!"
-      return
+    return console.error "ajax need url!" if not option.url
     console.log "Add request:",option.type,"to",option.url,"--Suzaku.AjaxManager"
     @reqs.push option
   start:(callback)->
-
     id = @tidCounter += 1
     newAjaxTask = 
       id:id
@@ -184,6 +179,8 @@ class AjaxManager extends EventEmitter
       ajaxTask.finishedNum += 1
       console.error "request failed!",req,textStatus,error
       ajaxTask.Suzaku_taskOpt.fail req,textStatus,error if ajaxTask.Suzaku_taskOpt.fail
+      if ajaxTask.finishedNum is ajaxTask.reqs.length
+        @emit "finish",ajaxTask.id
       
 
 window.Suzaku = new Suzaku
@@ -202,10 +199,52 @@ window.Suzaku.Utils =
       return newObj
 
     return target
-  compare:()->
-    
-  arrRemove:()->
-  removeObjFromArr:()->
+  compare:(a,b)->
+    if a is b then return true
+    if typeof a is "number" and typeof b is "number"
+      if Math.abs(a-b) < 0.0001 then return true
+    if typeof a is "object" and typeof b is "object"
+      for name,value of a
+        if not Utils.compare b[name],value then return false
+      for name,value of b
+        if not Utils.compare a[name],value then return false
+      return true
+    return false
+  removeItem:(source,target)->
+    if source instanceof Array and typeof target is 'number'
+      return source.splice target,1
+      
+    if typeof source is 'object'
+      if typeof target is 'string' or typeof target is 'number'
+        return delete source[target]
+        
+      if typeof target is 'object'
+        for name,item of source
+          if item is target then return Utils.removeItem source,name
+          found = true
+          for keyname,keyvalue of target
+            if Utils.compare item[keyname],keyvalue
+              continue
+            else
+              found = false
+              break
+          if found then return Utils.removeItem source,name
+          
+  findItem:(source,key,value)->
+    if typeof key is 'string' and typeof value isnt 'undefined'
+      target = {key:value}
+    else target = key
+    for name,item of source
+      if item is target then return {target:target,index:null}
+      found = true
+      for keyname,keyvalue of target
+        if Utils.compare item[keyname],keyvalue
+          continue
+        else
+          found = false
+          break
+      if found then return {target:target,index:name}
+        
 window.Suzaku.Key =
   0:48
   1:49

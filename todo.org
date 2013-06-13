@@ -5,6 +5,7 @@
 * DONE widget
 	remove beforeBy afterBy replaceBy
 * utils
-** clone
+** DONE clone
 ** compere
-** removeObjFromArr
+** removeItem
+** findItem
