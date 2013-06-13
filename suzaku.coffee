@@ -7,7 +7,9 @@ class Suzaku
     @Widget = Widget
     @TemplateManager = TemplateManager
     @EventEmitter = EventEmitter
-    @Utils = null
+    @Utils = Utils
+    @Key = null
+    @Mouse = null
     @KeybordManager = null
     @WsServer = null
     @AjaxManager = AjaxManager
@@ -106,30 +108,104 @@ class TemplateManager extends EventEmitter
     ajaxManager = new AjaxManager
     for name in tplNames
       url = localDir+name
-      ajaxManager.addTask
+      ajaxManager.addRequest
         type:"get"
         url:url
-        success:(res)->
+        retry:5
+        success:(data,textStatus,jqXHR)->
         fail:(err)->
       
     ajaxManager.start =>
       @emit.onload
 
-class ajaxManager extends EventEmitter
+class AjaxManager extends EventEmitter
   constructor:()->
-    @tasks = []
-    @ajaxQueue = []
-    @tidCounter = 1
-  addTask:(option)->
-    @tasks.push option
+    if not $
+      console.error "ajax Manager needs Jquery!"
+      return
+    @reqs = []
+    @ajaxTasks = {}
+    @tidCounter = 0
+  addRequest:(option)->
+    option.type = option.type or 'get'
+    if not option.url
+      console.error "ajax need url!"
+      return
+    console.log "Add request:",option.type,"to",option.url,"--Suzaku.AjaxManager"
+    @reqs.push option
   start:(callback)->
-    @ajaxQueue[@tidCounter] = @tasks
-    @tidCounter += 1
-    @tasks = []
-    @on "finish",=>
+
+    id = @tidCounter += 1
+    newAjaxTask = 
+      id:id
+      reqs:@reqs
+      finishedNum:0
+    @ajaxTasks[id] = newAjaxTask
+    console.log "start request tasks",newAjaxTask
+    @reqs = []
+    ajaxManager = this
+    for request,index in @ajaxTasks[id]
+      option = request.option
+      ajaxOpt = Utils.copy option
+      delete ajaxOpt.retry
+      ajaxOpt.success = (data,textStatus,req)=>
+        @_ajaxSuccessFunc data,textStatus,req
+      ajaxOpt.error = (req,textStatus,error)=>
+        @_ajaxErrorFunc req,textStatus,error
+        
+      ajaxReq = $.ajax ajaxOpt
+      ajaxReq.Suzaku_ajaxOpt = ajaxOpt
+      ajaxReq.Suzaku_taskOpt = option
+      ajaxReq.Suzaku_ajaxTask = newAjaxTask
+      
+    @on "finish",(taskId)=>
+      delete @ajaxTasks[taskId]
       callback if typeof callback is "function"
       
-window.Suzaku = new Suzaku      
+  _ajaxSuccessFunc:(data,textStatus,req)->
+    ajaxTask =  req.Suzaku_ajaxTask
+    ajaxTask.finishedNum += 1
+    ajaxTask.Suzaku_taskOpt.success data,textStatus,req if ajaxTask.Suzaku_taskOpt.success
+    if ajaxTask.finishedNum is ajaxTask.reqs.length
+      @emit "finish",ajaxTask.id
+        
+  _ajaxErrorFunc:(req,textStatus,error)->
+    taskOpt = req.Suzaku_taskOpt
+    retry = taskOpt.retry
+    retried = req.Suzaku_retried or 0
+    if retried < retry
+      ajaxReq = $.ajax req.Suzaku_ajaxOpt
+      ajaxReq.Suzaku_ajaxOpt = option
+      ajaxReq.Suzaku_taskOpt = req.Suzaku_taskOpt
+      ajaxReq.Suzaku_ajaxTask = newAjaxTask
+      ajaxReq.Suzaku_retried = retried + 1
+    else
+      ajaxTask = req.Suzaku_ajaxTask
+      ajaxTask.finishedNum += 1
+      console.error "request failed!",req,textStatus,error
+      ajaxTask.Suzaku_taskOpt.fail req,textStatus,error if ajaxTask.Suzaku_taskOpt.fail
+      
+
+window.Suzaku = new Suzaku
+window.Suzaku.Utils =
+  clone:(target,deepClone=false)->
+    if target instanceof Array
+      newArr = []
+      for item,index in target
+        newArr[index] = if deepClone then Utils.clone item,true else item
+      return newArr
+      
+    if typeof target is 'object'
+      newObj = {}
+      for name,item of target
+        newObj[name] = if deepClone then Utils.clone item,true else item
+      return newObj
+
+    return target
+  compare:()->
+    
+  arrRemove:()->
+  removeObjFromArr:()->
 window.Suzaku.Key =
   0:48
   1:49
@@ -182,7 +258,7 @@ window.Suzaku.Key =
   pageup:33
   pagedown:34
   tab:9
-window.Suzaku.Mouse =
+window.Suzaku.Mouse = 
   left:0
   middle:1
   right:2

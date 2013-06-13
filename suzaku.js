@@ -1,5 +1,5 @@
 (function() {
-  var EventEmitter, Suzaku, TemplateManager, Widget, ajaxManager,
+  var AjaxManager, EventEmitter, Suzaku, TemplateManager, Widget,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
@@ -14,7 +14,9 @@
       this.Widget = Widget;
       this.TemplateManager = TemplateManager;
       this.EventEmitter = EventEmitter;
-      this.Utils = null;
+      this.Utils = Utils;
+      this.Key = null;
+      this.Mouse = null;
       this.KeybordManager = null;
       this.WsServer = null;
       this.AjaxManager = AjaxManager;
@@ -214,10 +216,11 @@
       for (_j = 0, _len1 = tplNames.length; _j < _len1; _j++) {
         name = tplNames[_j];
         url = localDir + name;
-        ajaxManager.addTask({
+        ajaxManager.addRequest({
           type: "get",
           url: url,
-          success: function(res) {},
+          retry: 5,
+          success: function(data, textStatus, jqXHR) {},
           fail: function(err) {}
         });
       }
@@ -230,37 +233,135 @@
 
   })(EventEmitter);
 
-  ajaxManager = (function(_super) {
+  AjaxManager = (function(_super) {
 
-    __extends(ajaxManager, _super);
+    __extends(AjaxManager, _super);
 
-    function ajaxManager() {
-      this.tasks = [];
-      this.ajaxQueue = [];
-      this.tidCounter = 1;
+    function AjaxManager() {
+      if (!$) {
+        console.error("ajax Manager needs Jquery!");
+        return;
+      }
+      this.reqs = [];
+      this.ajaxTasks = {};
+      this.tidCounter = 0;
     }
 
-    ajaxManager.prototype.addTask = function(option) {
-      return this.tasks.push(option);
+    AjaxManager.prototype.addRequest = function(option) {
+      option.type = option.type || 'get';
+      if (!option.url) {
+        console.error("ajax need url!");
+        return;
+      }
+      console.log("Add request:", option.type, "to", option.url, "--Suzaku.AjaxManager");
+      return this.reqs.push(option);
     };
 
-    ajaxManager.prototype.start = function(callback) {
-      var _this = this;
-      this.ajaxQueue[this.tidCounter] = this.tasks;
-      this.tidCounter += 1;
-      this.tasks = [];
-      return this.on("finish", function() {
+    AjaxManager.prototype.start = function(callback) {
+      var ajaxManager, ajaxOpt, ajaxReq, id, index, newAjaxTask, option, request, _i, _len, _ref,
+        _this = this;
+      id = this.tidCounter += 1;
+      newAjaxTask = {
+        id: id,
+        reqs: this.reqs,
+        finishedNum: 0
+      };
+      this.ajaxTasks[id] = newAjaxTask;
+      console.log("start request tasks", newAjaxTask);
+      this.reqs = [];
+      ajaxManager = this;
+      _ref = this.ajaxTasks[id];
+      for (index = _i = 0, _len = _ref.length; _i < _len; index = ++_i) {
+        request = _ref[index];
+        option = request.option;
+        ajaxOpt = Utils.copy(option);
+        delete ajaxOpt.retry;
+        ajaxOpt.success = function(data, textStatus, req) {
+          return _this._ajaxSuccessFunc(data, textStatus, req);
+        };
+        ajaxOpt.error = function(req, textStatus, error) {
+          return _this._ajaxErrorFunc(req, textStatus, error);
+        };
+        ajaxReq = $.ajax(ajaxOpt);
+        ajaxReq.Suzaku_ajaxOpt = ajaxOpt;
+        ajaxReq.Suzaku_taskOpt = option;
+        ajaxReq.Suzaku_ajaxTask = newAjaxTask;
+      }
+      return this.on("finish", function(taskId) {
+        delete _this.ajaxTasks[taskId];
         if (typeof callback === "function") {
           return callback;
         }
       });
     };
 
-    return ajaxManager;
+    AjaxManager.prototype._ajaxSuccessFunc = function(data, textStatus, req) {
+      var ajaxTask;
+      ajaxTask = req.Suzaku_ajaxTask;
+      ajaxTask.finishedNum += 1;
+      if (ajaxTask.Suzaku_taskOpt.success) {
+        ajaxTask.Suzaku_taskOpt.success(data, textStatus, req);
+      }
+      if (ajaxTask.finishedNum === ajaxTask.reqs.length) {
+        return this.emit("finish", ajaxTask.id);
+      }
+    };
+
+    AjaxManager.prototype._ajaxErrorFunc = function(req, textStatus, error) {
+      var ajaxReq, ajaxTask, retried, retry, taskOpt;
+      taskOpt = req.Suzaku_taskOpt;
+      retry = taskOpt.retry;
+      retried = req.Suzaku_retried || 0;
+      if (retried < retry) {
+        ajaxReq = $.ajax(req.Suzaku_ajaxOpt);
+        ajaxReq.Suzaku_ajaxOpt = option;
+        ajaxReq.Suzaku_taskOpt = req.Suzaku_taskOpt;
+        ajaxReq.Suzaku_ajaxTask = newAjaxTask;
+        return ajaxReq.Suzaku_retried = retried + 1;
+      } else {
+        ajaxTask = req.Suzaku_ajaxTask;
+        ajaxTask.finishedNum += 1;
+        console.error("request failed!", req, textStatus, error);
+        if (ajaxTask.Suzaku_taskOpt.fail) {
+          return ajaxTask.Suzaku_taskOpt.fail(req, textStatus, error);
+        }
+      }
+    };
+
+    return AjaxManager;
 
   })(EventEmitter);
 
   window.Suzaku = new Suzaku;
+
+  window.Suzaku.Utils = {
+    clone: function(target, deepClone) {
+      var index, item, name, newArr, newObj, _i, _len;
+      if (deepClone == null) {
+        deepClone = false;
+      }
+      if (target instanceof Array) {
+        newArr = [];
+        for (index = _i = 0, _len = target.length; _i < _len; index = ++_i) {
+          item = target[index];
+          newArr[index] = deepClone ? Utils.clone(item, true) : item;
+        }
+        return newArr;
+      }
+      if (typeof target === 'object') {
+        newObj = {};
+        for (name in target) {
+          item = target[name];
+          newObj[name] = deepClone ? Utils.clone(item, true) : item;
+        }
+        return newObj;
+      }
+      return target;
+    },
+    compare: function() {},
+    arrRemove: function() {},
+    removeObjFromArr: function() {}
+  };
 
   window.Suzaku.Key = {
     0: 48,
