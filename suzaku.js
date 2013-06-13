@@ -14,13 +14,13 @@
       this.Widget = Widget;
       this.TemplateManager = TemplateManager;
       this.EventEmitter = EventEmitter;
-      this.Utils = Utils;
+      this.AjaxManager = AjaxManager;
+      this.KeybordManager = null;
+      this.AnimationManager = null;
+      this.Utils = null;
       this.Key = null;
       this.Mouse = null;
-      this.KeybordManager = null;
       this.WsServer = null;
-      this.AjaxManager = AjaxManager;
-      this.AnimationManager = null;
     }
 
     return Suzaku;
@@ -204,25 +204,28 @@
       this.tplNames = [];
     }
 
-    TemplateManager.prototype.load = function() {
-      var ajaxManager, item, loaclDir, name, url, _i, _j, _len, _len1,
-        _this = this;
+    TemplateManager.prototype.use = function() {
+      var item, _i, _len, _results;
+      _results = [];
       for (_i = 0, _len = arguments.length; _i < _len; _i++) {
         item = arguments[_i];
-        this.targets.push(item);
+        _results.push(this.tplNames.push(item));
       }
-      loaclDir = "./templates/";
+      return _results;
+    };
+
+    TemplateManager.prototype.start = function() {
+      var ajaxManager, loaclDir, name, req, url, _i, _len,
+        _this = this;
       ajaxManager = new AjaxManager;
-      for (_j = 0, _len1 = tplNames.length; _j < _len1; _j++) {
-        name = tplNames[_j];
+      loaclDir = "./templates/";
+      for (_i = 0, _len = tplNames.length; _i < _len; _i++) {
+        name = tplNames[_i];
         url = localDir + name;
-        ajaxManager.addRequest({
-          type: "get",
-          url: url,
-          retry: 5,
-          success: function(data, textStatus, jqXHR) {},
-          fail: function(err) {}
+        req = ajaxManager.addGetRequest(url, null, function(data, textStatus, req) {
+          return _this.templates[req.Suzaku_tplName] = data;
         });
+        req.Suzaku_tplName = name;
       }
       return ajaxManager.start(function() {
         return _this.emit.onload;
@@ -252,11 +255,33 @@
         return console.error("ajax need url!");
       }
       console.log("Add request:", option.type, "to", option.url, "--Suzaku.AjaxManager");
-      return this.reqs.push(option);
+      option.externPort = {};
+      this.reqs.push(option);
+      return option.externPort;
+    };
+
+    AjaxManager.prototype.addGetRequest = function(url, data, success, dataType) {
+      return this.addRequest({
+        type: "get",
+        url: url,
+        data: data,
+        dataType: dataType,
+        success: success
+      });
+    };
+
+    AjaxManager.prototype.addPostRequest = function(url, data, success, dataType) {
+      return this.addRequest({
+        type: "post",
+        url: url,
+        data: data,
+        dataType: dataType,
+        success: success
+      });
     };
 
     AjaxManager.prototype.start = function(callback) {
-      var ajaxManager, ajaxOpt, ajaxReq, id, index, newAjaxTask, option, request, _i, _len, _ref,
+      var ajaxManager, ajaxOpt, ajaxReq, id, index, name, newAjaxTask, option, request, value, _i, _len, _ref, _ref1,
         _this = this;
       id = this.tidCounter += 1;
       newAjaxTask = {
@@ -274,16 +299,22 @@
         option = request.option;
         ajaxOpt = Utils.copy(option);
         delete ajaxOpt.retry;
+        delete ajaxOpt.externPort;
         ajaxOpt.success = function(data, textStatus, req) {
-          return _this._ajaxSuccessFunc(data, textStatus, req);
+          return _this._ajaxSuccess.apply(req, arguments);
         };
         ajaxOpt.error = function(req, textStatus, error) {
-          return _this._ajaxErrorFunc(req, textStatus, error);
+          return _this._ajaxError.apply(req, arguments);
         };
         ajaxReq = $.ajax(ajaxOpt);
         ajaxReq.Suzaku_ajaxOpt = ajaxOpt;
         ajaxReq.Suzaku_taskOpt = option;
         ajaxReq.Suzaku_ajaxTask = newAjaxTask;
+        _ref1 = option.externPort;
+        for (name in _ref1) {
+          value = _ref1[name];
+          ajaxReq[name] = value;
+        }
       }
       return this.on("finish", function(taskId) {
         delete _this.ajaxTasks[taskId];
@@ -293,7 +324,7 @@
       });
     };
 
-    AjaxManager.prototype._ajaxSuccessFunc = function(data, textStatus, req) {
+    AjaxManager.prototype._ajaxSuccess = function(data, textStatus, req) {
       var ajaxTask;
       ajaxTask = req.Suzaku_ajaxTask;
       ajaxTask.finishedNum += 1;
@@ -305,16 +336,21 @@
       }
     };
 
-    AjaxManager.prototype._ajaxErrorFunc = function(req, textStatus, error) {
-      var ajaxReq, ajaxTask, retried, retry, taskOpt;
+    AjaxManager.prototype._ajaxError = function(req, textStatus, error) {
+      var ajaxReq, ajaxTask, name, retried, retry, taskOpt, value, _ref;
       taskOpt = req.Suzaku_taskOpt;
       retry = taskOpt.retry;
       retried = req.Suzaku_retried || 0;
       if (retried < retry) {
         ajaxReq = $.ajax(req.Suzaku_ajaxOpt);
-        ajaxReq.Suzaku_ajaxOpt = option;
+        ajaxReq.Suzaku_ajaxOpt = req.Suzaku_ajaxOpt;
         ajaxReq.Suzaku_taskOpt = req.Suzaku_taskOpt;
-        ajaxReq.Suzaku_ajaxTask = newAjaxTask;
+        ajaxReq.Suzaku_ajaxTask = req.Suzaku_ajaxTask;
+        _ref = req.Suzaku_taskOpt.externPort;
+        for (name in _ref) {
+          value = _ref[name];
+          ajaxReq[name] = value;
+        }
         return ajaxReq.Suzaku_retried = retried + 1;
       } else {
         ajaxTask = req.Suzaku_ajaxTask;

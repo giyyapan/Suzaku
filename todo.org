@@ -1,11 +1,11 @@
-* TODO ajax manager
+* DONE ajax manager
 	not work now
-* template manager
+* DONE template manager
 	get template by ajax
 * DONE widget
 	remove beforeBy afterBy replaceBy
 * utils
 ** DONE clone
-** compere
-** removeItem
-** findItem
+** DONE compere
+** DONE removeItem
+** DONE findItem

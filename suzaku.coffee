@@ -7,13 +7,15 @@ class Suzaku
     @Widget = Widget
     @TemplateManager = TemplateManager
     @EventEmitter = EventEmitter
-    @Utils = Utils
+    @AjaxManager = AjaxManager
+    
+    @KeybordManager = null    
+    @AnimationManager = null
+    @Utils = null
     @Key = null
     @Mouse = null
-    @KeybordManager = null
     @WsServer = null
-    @AjaxManager = AjaxManager
-    @AnimationManager = null
+    
 
 class EventEmitter
   constructor:()->
@@ -101,20 +103,17 @@ class TemplateManager extends EventEmitter
   constructor:()->
     @templates = {}
     @tplNames = []
-  load:()->
+  use:()->
     for item in arguments
-      @targets.push item
-    loaclDir = "./templates/"
+      @tplNames.push item
+  start:()->
     ajaxManager = new AjaxManager
+    loaclDir = "./templates/"
     for name in tplNames
       url = localDir+name
-      ajaxManager.addRequest
-        type:"get"
-        url:url
-        retry:5
-        success:(data,textStatus,jqXHR)->
-        fail:(err)->
-      
+      req = ajaxManager.addGetRequest url,null,(data,textStatus,req)=>
+        @templates[req.Suzaku_tplName] = data
+      req.Suzaku_tplName = name
     ajaxManager.start =>
       @emit.onload
 
@@ -128,7 +127,23 @@ class AjaxManager extends EventEmitter
     option.type = option.type or 'get'
     return console.error "ajax need url!" if not option.url
     console.log "Add request:",option.type,"to",option.url,"--Suzaku.AjaxManager"
+    option.externPort = {}
     @reqs.push option
+    return option.externPort
+  addGetRequest:(url,data,success,dataType)->
+    return @addRequest
+      type:"get"
+      url:url
+      data:data
+      dataType:dataType
+      success:success
+  addPostRequest:(url,data,success,dataType)->
+    return @addRequest
+      type:"post"
+      url:url
+      data:data
+      dataType:dataType
+      success:success
   start:(callback)->
     id = @tidCounter += 1
     newAjaxTask = 
@@ -143,36 +158,40 @@ class AjaxManager extends EventEmitter
       option = request.option
       ajaxOpt = Utils.copy option
       delete ajaxOpt.retry
+      delete ajaxOpt.externPort
       ajaxOpt.success = (data,textStatus,req)=>
-        @_ajaxSuccessFunc data,textStatus,req
+        @_ajaxSuccess.apply req,arguments
       ajaxOpt.error = (req,textStatus,error)=>
-        @_ajaxErrorFunc req,textStatus,error
+        @_ajaxError.apply req,arguments
         
       ajaxReq = $.ajax ajaxOpt
       ajaxReq.Suzaku_ajaxOpt = ajaxOpt
       ajaxReq.Suzaku_taskOpt = option
       ajaxReq.Suzaku_ajaxTask = newAjaxTask
+      ajaxReq[name] = value for name,value of option.externPort
+
       
     @on "finish",(taskId)=>
       delete @ajaxTasks[taskId]
       callback if typeof callback is "function"
       
-  _ajaxSuccessFunc:(data,textStatus,req)->
+  _ajaxSuccess:(data,textStatus,req)->
     ajaxTask =  req.Suzaku_ajaxTask
     ajaxTask.finishedNum += 1
     ajaxTask.Suzaku_taskOpt.success data,textStatus,req if ajaxTask.Suzaku_taskOpt.success
     if ajaxTask.finishedNum is ajaxTask.reqs.length
       @emit "finish",ajaxTask.id
         
-  _ajaxErrorFunc:(req,textStatus,error)->
+  _ajaxError:(req,textStatus,error)->
     taskOpt = req.Suzaku_taskOpt
     retry = taskOpt.retry
     retried = req.Suzaku_retried or 0
     if retried < retry
       ajaxReq = $.ajax req.Suzaku_ajaxOpt
-      ajaxReq.Suzaku_ajaxOpt = option
+      ajaxReq.Suzaku_ajaxOpt = req.Suzaku_ajaxOpt
       ajaxReq.Suzaku_taskOpt = req.Suzaku_taskOpt
-      ajaxReq.Suzaku_ajaxTask = newAjaxTask
+      ajaxReq.Suzaku_ajaxTask = req.Suzaku_ajaxTask
+      ajaxReq[name] = value for name,value of req.Suzaku_taskOpt.externPort
       ajaxReq.Suzaku_retried = retried + 1
     else
       ajaxTask = req.Suzaku_ajaxTask
@@ -191,14 +210,13 @@ window.Suzaku.Utils =
       for item,index in target
         newArr[index] = if deepClone then Utils.clone item,true else item
       return newArr
-      
     if typeof target is 'object'
       newObj = {}
       for name,item of target
         newObj[name] = if deepClone then Utils.clone item,true else item
       return newObj
-
     return target
+    
   compare:(a,b)->
     if a is b then return true
     if typeof a is "number" and typeof b is "number"
@@ -210,6 +228,7 @@ window.Suzaku.Utils =
         if not Utils.compare a[name],value then return false
       return true
     return false
+    
   removeItem:(source,target)->
     if source instanceof Array and typeof target is 'number'
       return source.splice target,1
