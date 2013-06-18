@@ -1,0 +1,25 @@
+._fade(@alphaFrom,@alphaTo){
+    0%  {opacity : @alphaFrom;}
+    100%{opacity : @alphaTo;}
+}
+._bgColorChange(@colorFrom,@colorTo){
+    0%  {background-color : @colorFrom;}
+    100%{background-color : @colorTo;}
+}
+@-webkit-keyframes fadeIn{
+    ._fade(0,1);
+}
+@-webkit-keyframes fadeOut{
+    ._fade(1,0);
+}
+@-webkit-keyframes bgHighlight_gray{
+    ._bgColorChange(rgba(20,20,20,0),rgba(20,20,20,0.3));
+}
+.animation(@name,@duration:0.2s,@timingFunc:ease){
+    -webkit-animation-name:@name;
+    -webkit-animation-duration: @duration;
+    -webkit-animation-timing-function: @timingFunc;
+    -webkit-backface-visibility: hidden;
+    -webkit-animation-fill-mode: both;
+
+}
