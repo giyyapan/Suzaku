@@ -4,6 +4,8 @@
 	get template by ajax
 * DONE widget
 	remove beforeBy afterBy replaceBy
+* template(widget) dragable
+	by adding a attribute in template html Suzaku_drag="true"?
 * utils
 ** DONE clone
 ** DONE compere
