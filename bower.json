@@ -6,7 +6,8 @@
   ],
   "description": "a lightweight web front-end library",
   "main": [
-    "js/suzaku.js",
+    "js/suzaku.coffee",
+    "js/suzaku.js"
   ],
   "moduleType": [],
   "license": "MIT",
