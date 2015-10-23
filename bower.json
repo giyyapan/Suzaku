@@ -1,0 +1,19 @@
+{
+  "name": "Suzaku",
+  "homepage": "https://github.com/giyyapan/Suzaku",
+  "authors": [
+    "giyyapan <giyyapan@gmail.com>"
+  ],
+  "description": "a lightweight web front-end library",
+  "main": "",
+  "moduleType": [],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
