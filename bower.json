@@ -5,7 +5,9 @@
     "giyyapan <giyyapan@gmail.com>"
   ],
   "description": "a lightweight web front-end library",
-  "main": "",
+  "main": [
+    "js/suzaku.js",
+  ],
   "moduleType": [],
   "license": "MIT",
   "private": true,
